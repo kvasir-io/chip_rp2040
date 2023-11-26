@@ -1,0 +1,6 @@
+[submodule "core"]
+	path = core
+	url = https://github.com/kvasir-io/core_cortex_m0plus.git
+[submodule "pioasm"]
+	path = pioasm
+	url = https://github.com/dominicpoeschko/pioasm.git
