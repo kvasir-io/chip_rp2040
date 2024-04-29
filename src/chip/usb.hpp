@@ -1177,6 +1177,7 @@ namespace Kvasir { namespace USB {
         static bool send(std::span<std::byte const> data) {
             using Buffer = typename Base::BufferRegs::template EP<2>::IN_BUFFER_CONTROL;
 
+            assert(64 >= data.size());
             auto const av = apply(read(Buffer::available_0), read(Buffer::available_1));
             if(get<0>(av) && get<1>(av)) {
                 return false;
