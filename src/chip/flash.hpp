@@ -6,7 +6,7 @@ namespace Kvasir {
 namespace Flash {
     namespace detail {
         [[KVASIR_RAM_FUNC_ATTRIBUTES]] static inline void
-        eraseAndWrite_int(std::uint32_t offset, std::uint8_t const* data, std::size_t size) {
+        eraseAndWrite(std::uint32_t offset, std::uint8_t const* data, std::size_t size) {
             auto erase = RomFunctions::getRomFunctionPointer<
               'R',
               'E',
@@ -20,26 +20,58 @@ namespace Flash {
             erase(offset, 4096, 1 << 16, 0xD8);
             write(offset, data, size);
         }
+        [[KVASIR_RAM_FUNC_ATTRIBUTES]] static inline void
+        erase(std::uint32_t offset, std::size_t blocks) {
+            auto erase = RomFunctions::getRomFunctionPointer<
+              'R',
+              'E',
+              void (*)(std::uint32_t, std::size_t, std::uint32_t, std::uint8_t)>();
+
+            Boot2XipDisabler xipDisabler{};
+            erase(offset, blocks * 4096, 1 << 16, 0xD8);
+        }
+        [[KVASIR_RAM_FUNC_ATTRIBUTES]] static inline void
+        write(std::uint32_t offset, std::uint8_t const* data, std::size_t size) {
+            auto write = RomFunctions::getRomFunctionPointer<
+              'R',
+              'P',
+              void (*)(std::uint32_t, std::uint8_t const*, std::size_t)>();
+
+            Boot2XipDisabler xipDisabler{};
+            write(offset, data, size);
+        }
 
     }   // namespace detail
     static inline void eraseAndWrite(std::uint32_t addr, std::span<std::byte const> data) {
-        assert(256 >= data.size());
-        std::uint32_t const        offset = addr - 0x10000000;
-        std::array<std::byte, 256> buffer{};
-        std::copy(data.begin(), data.end(), buffer.begin());
-        assert(addr % 4096 == 0);
+        constexpr std::size_t flashBlockSize{4096};
+        assert(addr % flashBlockSize == 0);
+        //Löschen von n 4096 byte Speicherbereichen
+        std::uint32_t offset = addr - 0x10000000;
         {
+            std::size_t eraseBlocks
+              = data.size() / flashBlockSize + (data.size() % flashBlockSize == 0 ? 0 : 1);
             Kvasir::Nvic::InterruptGuard<Kvasir::Nvic::Global> guard{};
-            detail::eraseAndWrite_int(
-              offset,
-              reinterpret_cast<std::uint8_t const*>(buffer.data()),
-              buffer.size());
+            detail::erase(offset, eraseBlocks);
+        }
+        constexpr std::size_t writeBlockSize{256};
+        while(!data.empty()) {
+            std::array<std::byte, writeBlockSize> buffer{};
+            std::copy_n(data.begin(), std::min(data.size(), writeBlockSize), buffer.begin());
+            {
+                Kvasir::Nvic::InterruptGuard<Kvasir::Nvic::Global> guard{};
+                detail::write(
+                  offset,
+                  reinterpret_cast<std::uint8_t const*>(buffer.data()),
+                  buffer.size());
+            }
+            offset += writeBlockSize;
+            data = data.subspan(std::min(data.size(), writeBlockSize));
         }
     }
 }   // namespace Flash
 template<typename Clock, typename T, typename Crc>
 struct SimpleEeprom {
-    static std::uint16_t calcCrc(T const& v) {
+    static auto calcCrc(T const& v) {
         return Crc::calc(std::as_bytes(std::span{std::addressof(v), 1}));
     }
 
