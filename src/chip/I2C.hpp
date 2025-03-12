@@ -239,10 +239,10 @@ namespace Kvasir { namespace I2C {
                 I2CConfig::maxBaudRateError),
               "invalid baud configuration baudRate error to big");
             static_assert(
-              Config::template isValidPinLocationSDA(I2CConfig::sdaPinLocation),
+              Config::isValidPinLocationSDA(I2CConfig::sdaPinLocation),
               "invalid SDAPin");
             static_assert(
-              Config::template isValidPinLocationSCL(I2CConfig::sclPinLocation),
+              Config::isValidPinLocationSCL(I2CConfig::sclPinLocation),
               "invalid SCLPin");
 
             static constexpr auto powerClockEnable = list(Traits::I2C::getEnable<Instance>());
