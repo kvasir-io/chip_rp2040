@@ -9,8 +9,7 @@
 
 #include <array>
 namespace Kvasir { namespace Io {
-    template<>
-    struct PinLocationTraits<void> {
+    struct PinLocationTraits {
         static constexpr unsigned baseAddress = Kvasir::Peripheral::IO_BANK0::Registers<>::baseAddr;
         static constexpr int      portBegin   = 0;
         static constexpr int      portEnd     = 1;
@@ -27,17 +26,17 @@ namespace Kvasir { namespace Io {
 
     template<int Port, int Pin>
     constexpr bool isValidPinLocation() {
-        if(!(Port < PinLocationTraits<void>::portEnd && Port >= PinLocationTraits<void>::portBegin))
+        if(!(Port < PinLocationTraits::portEnd && Port >= PinLocationTraits::portBegin))
         {
             return false;
         }
 
-        if(!(Pin < PinLocationTraits<void>::pinEnd && Pin >= PinLocationTraits<void>::pinBegin)) {
+        if(!(Pin < PinLocationTraits::pinEnd && Pin >= PinLocationTraits::pinBegin)) {
             return false;
         }
 
-        for(auto dp : PinLocationTraits<void>::PinsDisabled[Port]) {
-            if(dp == PinLocationTraits<void>::ListEndIndicator) {
+        for(auto dp : PinLocationTraits::PinsDisabled[Port]) {
+            if(dp == PinLocationTraits::ListEndIndicator) {
                 break;
             }
             if(dp == Pin) {
