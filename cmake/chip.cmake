@@ -11,9 +11,7 @@ set(TARGET_EXTRA_FLASH_SECTIONS .boot2)
 set(LINKER_FILE ${CMAKE_CURRENT_LIST_DIR}/../linker/chip.ld)
 
 set(CHIP_SOURCES ${CMAKE_CURRENT_LIST_DIR}/../src/chip/divider.S)
-set(CHIP_LINKER_OPTIONS
-    --wrap=__aeabi_idiv --wrap=__aeabi_idivmod --wrap=__aeabi_ldivmod
-    --wrap=__aeabi_uidiv --wrap=__aeabi_uidivmod --wrap=__aeabi_uldivmod)
+set(CHIP_LINKER_OPTIONS --wrap=__aeabi_idiv --wrap=__aeabi_idivmod --wrap=__aeabi_ldivmod --wrap=__aeabi_uidiv
+                        --wrap=__aeabi_uidivmod --wrap=__aeabi_uldivmod)
 
-svd_convert(peripherals SVD_FILE ${CMAKE_CURRENT_LIST_DIR}/../chip.svd
-            OUTPUT_DIRECTORY peripherals)
+svd_convert(peripherals SVD_FILE ${CMAKE_CURRENT_LIST_DIR}/../chip.svd OUTPUT_DIRECTORY peripherals)
