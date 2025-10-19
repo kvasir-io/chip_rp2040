@@ -1,5 +1,5 @@
 include(${CMAKE_CURRENT_LIST_DIR}/../core/cmake/core.cmake)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../pioasm)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../src/chip/rp_common/pioasm ${CMAKE_BINARY_DIR}/chip_pioasm)
 
 set(TARGET_MPU RP2040_M0_0)
 set(TARGET_UF2_CODE 0xE48BFF56)
