@@ -22072,7 +22072,7 @@
                             <access>read-write</access>
                             <bitRange>[31:0]</bitRange>
                             <description>Data Register</description>
-                            <name>data</name>
+                            <name>sniff_data</name>
                         </field>
                     </fields>
                 </register>
