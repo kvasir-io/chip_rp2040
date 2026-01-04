@@ -1,0 +1,102 @@
+name: Build and Push RP2040 Container
+
+on:
+    push:
+        branches: [master]
+    workflow_dispatch:
+
+jobs:
+    rp2040-build-push:
+        runs-on: ubuntu-latest
+        outputs:
+            build-date: ${{ steps.set-date.outputs.build-date }}
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                submodules: recursive
+
+            - name: Set build date
+              id: set-date
+              run: |
+                # Get current date in YYYY.MM.DD format (Arch ISO style)
+                BUILD_DATE=$(date +%Y.%m.%d)
+                echo "build-date=$BUILD_DATE" >> $GITHUB_OUTPUT
+                echo "Build date: $BUILD_DATE"
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Log in to DockerHub
+              uses: docker/login-action@v3
+              with:
+                username: ${{ secrets.DOCKERHUB_USERNAME }}
+                password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Build and push RP2040 Docker image
+              uses: docker/build-push-action@v5
+              with:
+                context: .
+                file: scripts/Dockerfile.rp2040
+                push: true
+                platforms: linux/amd64
+                tags: |
+                    kvasirio/rp2040:latest
+                    kvasirio/rp2040:${{ steps.set-date.outputs.build-date }}
+                cache-from: type=gha
+                cache-to: type=gha,mode=max
+
+    notify-status:
+        runs-on: ubuntu-latest
+        needs: [rp2040-build-push]
+        if: always()
+        steps:
+            - name: Set build status
+              run: |
+                if [ "${{ needs.rp2040-build-push.result }}" = "success" ]; then
+                  echo "BUILD_STATUS=success" >> $GITHUB_ENV
+                  echo "BUILD_MESSAGE=✅ RP2040 container built and pushed to kvasirio/rp2040:latest" >> $GITHUB_ENV
+                elif [ "${{ needs.rp2040-build-push.result }}" = "failure" ]; then
+                  echo "BUILD_STATUS=failure" >> $GITHUB_ENV
+                  echo "BUILD_MESSAGE=❌ RP2040 container build failed - check workflow logs" >> $GITHUB_ENV
+                else
+                  echo "BUILD_STATUS=cancelled" >> $GITHUB_ENV
+                  echo "BUILD_MESSAGE=🚫 RP2040 container build was cancelled" >> $GITHUB_ENV
+                fi
+
+            - name: Update commit status
+              uses: actions/github-script@v7
+              with:
+                script: |
+                    const status = process.env.BUILD_STATUS;
+                    const message = process.env.BUILD_MESSAGE;
+
+                    let state;
+                    if (status === 'success') state = 'success';
+                    else if (status === 'failure') state = 'failure';
+                    else state = 'error';
+
+                    await github.rest.repos.createCommitStatus({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      sha: context.sha,
+                      state: state,
+                      target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                      description: message,
+                      context: 'RP2040 Container Build'
+                    });
+
+            - name: Create summary
+              run: |-
+                echo "## RP2040 Container Build Status" >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "${{ env.BUILD_MESSAGE }}" >> $GITHUB_STEP_SUMMARY
+
+                if [ "${{ needs.rp2040-build-push.result }}" = "success" ]; then
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "**Image Tags:**" >> $GITHUB_STEP_SUMMARY
+                  echo "- \`kvasirio/rp2040:latest\`" >> $GITHUB_STEP_SUMMARY
+                  echo "- \`kvasirio/rp2040:${{ needs.rp2040-build-push.outputs.build-date }}\`" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "[View on DockerHub](https://hub.docker.com/r/kvasirio/rp2040)" >> $GITHUB_STEP_SUMMARY
+                fi
