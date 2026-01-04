@@ -11,6 +11,7 @@ set(TARGET_EXTRA_FLASH_SECTIONS .boot2)
 set(LINKER_FILE ${CMAKE_CURRENT_LIST_DIR}/../linker/chip.ld)
 
 set(CHIP_SOURCES ${CMAKE_CURRENT_LIST_DIR}/../src/chip/divider.S)
+set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/../src/chip/divider.S PROPERTIES COMPILE_FLAGS "-Wno-c++-keyword")
 set(CHIP_LINKER_OPTIONS --wrap=__aeabi_idiv --wrap=__aeabi_idivmod --wrap=__aeabi_ldivmod --wrap=__aeabi_uidiv
                         --wrap=__aeabi_uidivmod --wrap=__aeabi_uldivmod)
 
