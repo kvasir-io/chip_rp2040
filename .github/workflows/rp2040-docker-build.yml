@@ -12,7 +12,7 @@ jobs:
             build-date: ${{ steps.set-date.outputs.build-date }}
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
               with:
                 submodules: recursive
 
@@ -34,7 +34,7 @@ jobs:
                 password: ${{ secrets.DOCKERHUB_TOKEN }}
 
             - name: Build and push RP2040 Docker image
-              uses: docker/build-push-action@v5
+              uses: docker/build-push-action@v6
               with:
                 context: .
                 file: scripts/Dockerfile.rp2040
@@ -65,7 +65,7 @@ jobs:
                 fi
 
             - name: Update commit status
-              uses: actions/github-script@v7
+              uses: actions/github-script@v8
               with:
                 script: |
                     const status = process.env.BUILD_STATUS;
