@@ -1,6 +1,7 @@
 #pragma once
 #include "core/core.hpp"
 #include "kvasir/Common/Core.hpp"
+#include "rp_common/Multicore.hpp"
 
 #include <array>
 #include <cstdint>
@@ -98,6 +99,25 @@ namespace Kvasir { namespace Startup {
                   set(WDSEL::busctrl),
                   set(WDSEL::adc));
         }
+    };
+
+    // The second core (kvasir/StartUp/SecondaryCore.hpp). What core 1 has to do for itself
+    // is nothing on the RP2040: no coprocessor to enable, no exclusives to route, so only
+    // the bootrom handshake and the PSM reset are here. The atomic shim's cross-core lock
+    // for a multicore build is chip/CrossCoreLock.hpp.
+    template<typename... Ts>
+    struct SecondaryCoreInit<Tag::User, Ts...> {
+        static constexpr std::uint32_t cpacrEnable = 0;
+
+        void operator()() {}
+
+        [[nodiscard]] static bool launch(std::uint32_t entry,
+                                         std::uint32_t sp,
+                                         std::uint32_t vtor) {
+            return Multicore::launchCore1(entry, sp, vtor);
+        }
+
+        static void reset() { Multicore::resetCore1(); }
     };
 }}   // namespace Kvasir::Startup
 

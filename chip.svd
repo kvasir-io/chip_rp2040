@@ -21742,7 +21742,8 @@
                     <description>Interrupt Status (raw)</description>
                     <fields>
                         <field>
-                            <access>read-only</access>
+                            <access>read-write</access>
+                            <modifiedWriteValues>oneToClear</modifiedWriteValues>
                             <bitRange>[15:0]</bitRange>
                             <description
                                 >Raw interrupt status for DMA Channels 0..15. Bit n corresponds to channel n. Ignores any masking or
@@ -25407,7 +25408,7 @@
                         <resetValue>0x00000000</resetValue>
                         <fields>
                             <field>
-                                <access>write-only</access>
+                                <access>read-only</access>
                                 <bitRange>[31:0]</bitRange>
                                 <name>fifo</name>
                             </field>
@@ -26219,6 +26220,7 @@
                     <fields>
                         <field>
                             <access>write-only</access>
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <bitRange>[29:0]</bitRange>
                             <description>Perform an atomic bit-set on GPIO_OUT, i.e. `GPIO_OUT |= wdata`</description>
                             <name>GPIO_OUT_SET</name>
@@ -26233,6 +26235,7 @@
                     <fields>
                         <field>
                             <access>write-only</access>
+                            <modifiedWriteValues>oneToClear</modifiedWriteValues>
                             <bitRange>[29:0]</bitRange>
                             <description>Perform an atomic bit-clear on GPIO_OUT, i.e. `GPIO_OUT &amp;= ~wdata`</description>
                             <name>GPIO_OUT_CLR</name>
@@ -26247,6 +26250,7 @@
                     <fields>
                         <field>
                             <access>write-only</access>
+                            <modifiedWriteValues>oneToToggle</modifiedWriteValues>
                             <bitRange>[29:0]</bitRange>
                             <description>Perform an atomic bitwise XOR on GPIO_OUT, i.e. `GPIO_OUT ^= wdata`</description>
                             <name>GPIO_OUT_XOR</name>
@@ -26280,6 +26284,7 @@
                     <fields>
                         <field>
                             <access>write-only</access>
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <bitRange>[29:0]</bitRange>
                             <description>Perform an atomic bit-set on GPIO_OE, i.e. `GPIO_OE |= wdata`</description>
                             <name>GPIO_OE_SET</name>
@@ -26294,6 +26299,7 @@
                     <fields>
                         <field>
                             <access>write-only</access>
+                            <modifiedWriteValues>oneToClear</modifiedWriteValues>
                             <bitRange>[29:0]</bitRange>
                             <description>Perform an atomic bit-clear on GPIO_OE, i.e. `GPIO_OE &amp;= ~wdata`</description>
                             <name>GPIO_OE_CLR</name>
@@ -26308,6 +26314,7 @@
                     <fields>
                         <field>
                             <access>write-only</access>
+                            <modifiedWriteValues>oneToToggle</modifiedWriteValues>
                             <bitRange>[29:0]</bitRange>
                             <description>Perform an atomic bitwise XOR on GPIO_OE, i.e. `GPIO_OE ^= wdata`</description>
                             <name>GPIO_OE_XOR</name>
@@ -26341,6 +26348,7 @@
                     <fields>
                         <field>
                             <access>write-only</access>
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <bitRange>[5:0]</bitRange>
                             <description>Perform an atomic bit-set on GPIO_HI_OUT, i.e. `GPIO_HI_OUT |= wdata`</description>
                             <name>GPIO</name>
@@ -26355,6 +26363,7 @@
                     <fields>
                         <field>
                             <access>write-only</access>
+                            <modifiedWriteValues>oneToClear</modifiedWriteValues>
                             <bitRange>[5:0]</bitRange>
                             <description>Perform an atomic bit-clear on GPIO_HI_OUT, i.e. `GPIO_HI_OUT &amp;= ~wdata`</description>
                             <name>GPIO</name>
@@ -26369,6 +26378,7 @@
                     <fields>
                         <field>
                             <access>write-only</access>
+                            <modifiedWriteValues>oneToToggle</modifiedWriteValues>
                             <bitRange>[5:0]</bitRange>
                             <description>Perform an atomic bitwise XOR on GPIO_HI_OUT, i.e. `GPIO_HI_OUT ^= wdata`</description>
                             <name>GPIO</name>
@@ -26402,6 +26412,7 @@
                     <fields>
                         <field>
                             <access>write-only</access>
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <bitRange>[5:0]</bitRange>
                             <description>Perform an atomic bit-set on GPIO_HI_OE, i.e. `GPIO_HI_OE |= wdata`</description>
                             <name>GPIO</name>
@@ -26416,6 +26427,7 @@
                     <fields>
                         <field>
                             <access>write-only</access>
+                            <modifiedWriteValues>oneToClear</modifiedWriteValues>
                             <bitRange>[5:0]</bitRange>
                             <description>Perform an atomic bit-clear on GPIO_HI_OE, i.e. `GPIO_HI_OE &amp;= ~wdata`</description>
                             <name>GPIO</name>
@@ -26430,6 +26442,7 @@
                     <fields>
                         <field>
                             <access>write-only</access>
+                            <modifiedWriteValues>oneToToggle</modifiedWriteValues>
                             <bitRange>[5:0]</bitRange>
                             <description>Perform an atomic bitwise XOR on GPIO_HI_OE, i.e. `GPIO_HI_OE ^= wdata`</description>
                             <name>GPIO_HI_OE_XOR</name>

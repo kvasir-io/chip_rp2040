@@ -9,6 +9,8 @@ set(TARGET_EEPROM_SIZE 0)
 set(TARGET_EXTRA_FLASH_SECTIONS .boot2)
 
 set(LINKER_FILE ${CMAKE_CURRENT_LIST_DIR}/../linker/chip.ld)
+# For kvasir_executable(... RAM_ONLY): everything in SRAM, no flash region, no boot2.
+set(LINKER_FILE_RAM_ONLY ${CMAKE_CURRENT_LIST_DIR}/../linker/chip_ram_only.ld)
 
 set(CHIP_SOURCES ${CMAKE_CURRENT_LIST_DIR}/../src/chip/divider.S)
 set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/../src/chip/divider.S PROPERTIES COMPILE_FLAGS "-Wno-c++-keyword")

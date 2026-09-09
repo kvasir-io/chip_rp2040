@@ -18,8 +18,17 @@ SECTIONS{
 }
 
 INCLUDE common_flash.ld
-/*INCLUDE common_eeprom.ld*/
 INCLUDE common_ram.ld
+
+/* The flash's last 4 KiB sector is Kvasir::Flash::SimpleEeprom's (.eeprom in flash.hpp): the
+ * value is read through XIP at this address and the sector rewritten in place. NOLOAD keeps
+ * it out of the image, so a reflash leaves the stored value alone. */
+SECTIONS {
+    .eeprom (ORIGIN(flash) + LENGTH(flash) - 4K) (NOLOAD) : {
+        . = ALIGN(4096);
+        KEEP(*(.eeprom*))
+    } > flash
+}
 
 INCLUDE common.ld
 
