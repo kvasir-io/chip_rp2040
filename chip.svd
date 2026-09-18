@@ -22208,7 +22208,7 @@
                         <resetValue>0x00000000</resetValue>
                     </register>
                     <register>
-                        <addressOffset>0x00C0</addressOffset>
+                        <addressOffset>0x0080</addressOffset>
                         <name>Out</name>
                         <dim>2</dim>
                         <dimIncrement>0x40</dimIncrement>
