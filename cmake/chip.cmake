@@ -1,12 +1,18 @@
 include(${CMAKE_CURRENT_LIST_DIR}/../core/cmake/core.cmake)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../src/chip/rp_common/pioasm ${CMAKE_BINARY_DIR}/chip_pioasm)
 
 set(TARGET_MPU RP2040_M0_0)
 set(TARGET_UF2_CODE 0xE48BFF56)
 set(TARGET_FLASH_SIZE 2096896)
 set(TARGET_RAM_SIZE 262144)
 set(TARGET_EEPROM_SIZE 0)
-set(TARGET_EXTRA_FLASH_SECTIONS .boot2)
+# .scratch_x / .scratch_y: the load images of the SRAM4/SRAM5 sections (linker/chip.ld). Not in this list, the hex and
+# uf2 would carry nothing for them and ExtraMemoryInit would copy erased flash into the banks.
+set(TARGET_EXTRA_FLASH_SECTIONS .boot2 .scratch_x .scratch_y)
+# The SRAM4/SRAM5 scratch banks (linker/chip.ld), 4 KiB each (RP2040 datasheet 2.2.2: SRAM4_BASE 0x20040000, SRAM5_BASE
+# 0x20041000, SRAM_END 0x20042000). Kvasir_SDK util.cmake: CORE1_STACK_PLACEMENT scratch puts core 1's stack into SRAM4
+# (at most this many bytes), the SCRATCH_BANKS flag turns on the KVASIR_COREn_{DATA,BSS,CODE} attributes and the
+# copy/zero at boot (src/chip/StartUp.hpp ExtraMemoryInit). Both opt-in.
+set(TARGET_CORE1_SCRATCH_SIZE 4096)
 
 # J-Link Commander lines after `connect` in the flash/reset/connect scripts (Kvasir_SDK cmake/jlink.cmake): core 1 back
 # into its boot ROM before anything is reset or written. The commander's `r` restarts the connected core only, and a

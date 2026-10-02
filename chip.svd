@@ -90,7 +90,8 @@
                                 means cache-as-SRAM\n contents is not affected by flush or reset.)\n Reading will hold the bus (stall the
                                 processor) until the flush\n completes. Alternatively STAT can be polled until completion.</description
                             >
-                            <modifiedWriteValues>clear</modifiedWriteValues>
+                            <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 2.6.3.6 Table 156); was `clear` -->
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <name>FLUSH</name>
                         </field>
                     </fields>
@@ -16803,6 +16804,8 @@
                                 0x0</description
                             >
                             <name>DAT</name>
+                            <!-- Kvasir: as on the RP2350 (the same DW_apb_i2c; RP2040 datasheet 4.3, IC_DATA_CMD): a read pops the RX FIFO -->
+                            <readAction>modify</readAction>
                         </field>
                     </fields>
                     <name>IC_DATA_CMD</name>
@@ -19235,7 +19238,8 @@
                             <access>read-write</access>
                             <bitRange>[2:2]</bitRange>
                             <description>Start a single conversion. Self-clearing. Ignored if start_many is asserted.</description>
-                            <modifiedWriteValues>clear</modifiedWriteValues>
+                            <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 4.9.6 Table 568); was `clear` -->
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <name>START_ONCE</name>
                         </field>
                         <field>
@@ -19486,7 +19490,8 @@
                                     until low. Counter must be running\n at less than full speed (div_int + div_frac / 16 &gt;
                                     1)</description
                                 >
-                                <modifiedWriteValues>clear</modifiedWriteValues>
+                                <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 4.5.3 Table 517); was `clear` -->
+                                <modifiedWriteValues>oneToSet</modifiedWriteValues>
                                 <name>PH_ADV</name>
                             </field>
                             <field>
@@ -19496,7 +19501,8 @@
                                     >Retard the phase of the counter by 1 count, while it is running.\n Self-clearing. Write a 1, and poll
                                     until low. Counter must be running.</description
                                 >
-                                <modifiedWriteValues>clear</modifiedWriteValues>
+                                <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 4.5.3 Table 517); was `clear` -->
+                                <modifiedWriteValues>oneToSet</modifiedWriteValues>
                                 <name>PH_RET</name>
                             </field>
                             <field>
@@ -20187,7 +20193,8 @@
                             <access>read-write</access>
                             <bitRange>[31:31]</bitRange>
                             <description>Trigger a watchdog reset</description>
-                            <modifiedWriteValues>clear</modifiedWriteValues>
+                            <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 4.7.6 Table 546); was `clear` -->
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <name>TRIGGER</name>
                         </field>
                         <field>
@@ -20454,7 +20461,8 @@
                             <access>read-write</access>
                             <bitRange>[4:4]</bitRange>
                             <description>Load RTC</description>
-                            <modifiedWriteValues>clear</modifiedWriteValues>
+                            <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 4.8.6 Table 556); was `clear` -->
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <name>LOAD</name>
                         </field>
                         <field>
@@ -21965,7 +21973,8 @@
                                 writing to that channel's trigger register; the channel will start if it is currently enabled and not
                                 already busy.</description
                             >
-                            <modifiedWriteValues>clear</modifiedWriteValues>
+                            <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 2.5.7 Table 145); was `clear` -->
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <name>MULTI_CHAN_TRIGGER</name>
                         </field>
                     </fields>
@@ -22116,7 +22125,8 @@
                                 data FIFOs.\n\n After writing, this register must be polled until it returns all-zero. Until this point, it
                                 is unsafe to restart the channel.</description
                             >
-                            <modifiedWriteValues>clear</modifiedWriteValues>
+                            <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 2.5.7 Table 149); was `clear` -->
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <name>CHAN_ABORT</name>
                         </field>
                     </fields>
@@ -23040,14 +23050,16 @@
                             <access>read-write</access>
                             <bitRange>[13:13]</bitRange>
                             <description>Host: Reset bus</description>
-                            <modifiedWriteValues>clear</modifiedWriteValues>
+                            <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 4.1.4 Table 403); was `clear` -->
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <name>RESET_BUS</name>
                         </field>
                         <field>
                             <access>read-write</access>
                             <bitRange>[12:12]</bitRange>
                             <description>Device: Remote wakeup. Device can initiate its own resume after suspend.</description>
-                            <modifiedWriteValues>clear</modifiedWriteValues>
+                            <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 4.1.4 Table 403); was `clear` -->
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <name>RESUME</name>
                         </field>
                         <field>
@@ -23084,7 +23096,8 @@
                             <access>read-write</access>
                             <bitRange>[4:4]</bitRange>
                             <description>Host: Stop transaction</description>
-                            <modifiedWriteValues>clear</modifiedWriteValues>
+                            <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 4.1.4 Table 403); was `clear` -->
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <name>STOP_TRANS</name>
                         </field>
                         <field>
@@ -23109,7 +23122,8 @@
                             <access>read-write</access>
                             <bitRange>[0:0]</bitRange>
                             <description>Host: Start transaction</description>
-                            <modifiedWriteValues>clear</modifiedWriteValues>
+                            <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 4.1.4 Table 403); was `clear` -->
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <name>START_TRANS</name>
                         </field>
                     </fields>
@@ -25210,7 +25224,8 @@
                                 CLKDIV_RESTART can be written to whilst the state machine is running, and this is useful to resynchronise
                                 clock dividers after the divisors (SMx_CLKDIV) have been changed on-the-fly.</description
                             >
-                            <modifiedWriteValues>clear</modifiedWriteValues>
+                            <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 3.7 Table 368); was `clear` -->
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <name>CLKDIV_RESTART</name>
                         </field>
                         <field>
@@ -25222,7 +25237,8 @@
                                 of the input shift register; the delay counter; the waiting-on-IRQ state; any stalled instruction written to
                                 SMx_INSTR or run by OUT/MOV EXEC; any pin write left asserted due to OUT_STICKY.</description
                             >
-                            <modifiedWriteValues>clear</modifiedWriteValues>
+                            <!-- Kvasir: self-clearing trigger, a written 0 does nothing (SC; RP2040 datasheet 3.7 Table 368); was `clear` -->
+                            <modifiedWriteValues>oneToSet</modifiedWriteValues>
                             <name>SM_RESTART</name>
                         </field>
                         <field>

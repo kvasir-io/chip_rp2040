@@ -1,10 +1,29 @@
 #pragma once
 #include "core/core.hpp"
 #include "kvasir/Common/Core.hpp"
+#include "peripherals/ROSC.hpp"
 #include "rp_common/Multicore.hpp"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+
+#if defined(KVASIR_CORE_SCRATCH)
+// linker/chip.ld, chip_ram_only.ld
+extern "C" {
+extern std::byte _LINKER_INTERN_scratch_x_load_;
+extern std::byte _LINKER_INTERN_scratch_x_data_start_;
+extern std::byte _LINKER_INTERN_scratch_x_data_end_;
+extern std::byte _LINKER_INTERN_scratch_x_bss_start_;
+extern std::byte _LINKER_INTERN_scratch_x_bss_end_;
+extern std::byte _LINKER_INTERN_scratch_y_load_;
+extern std::byte _LINKER_INTERN_scratch_y_data_start_;
+extern std::byte _LINKER_INTERN_scratch_y_data_end_;
+extern std::byte _LINKER_INTERN_scratch_y_bss_start_;
+extern std::byte _LINKER_INTERN_scratch_y_bss_end_;
+}
+#endif
 
 namespace Kvasir { namespace Startup {
     [[gnu::used,
@@ -118,6 +137,61 @@ namespace Kvasir { namespace Startup {
         }
 
         static void reset() { Multicore::resetCore1(); }
+    };
+
+#if defined(KVASIR_CORE_SCRATCH)
+    // SCRATCH_BANKS (Kvasir_SDK util.cmake): the SRAM4/SRAM5 sections of linker/chip.ld - copy
+    // the KVASIR_COREn_DATA/_CODE load images out of flash, zero KVASIR_COREn_BSS. Right after
+    // initMemory(), before any constructor. Core 1's stack in SRAM4 is not touched here:
+    // SecondaryCore fills it before the launch. In a RAM-only image the load image is where it
+    // runs and nothing is copied. Without SCRATCH_BANKS this does not exist, and chip.ld
+    // refuses scratch-bank objects.
+    template<typename... Ts>
+    struct ExtraMemoryInit<Tag::User, Ts...> {
+        [[gnu::always_inline]] static void copy(std::byte const* from,
+                                                std::byte*       to,
+                                                std::byte*       end) {
+            // the linker's symbols are distinct objects to the compiler: hide them from it
+            asm("" : "+l"(from), "+l"(to), "+l"(end));
+            if(from != to) { std::memcpy(to, from, static_cast<std::size_t>(end - to)); }
+        }
+
+        [[gnu::always_inline]] static void zero(std::byte* from,
+                                                std::byte* end) {
+            asm("" : "+l"(from), "+l"(end));
+            std::memset(from, 0, static_cast<std::size_t>(end - from));
+        }
+
+        [[gnu::always_inline]] void operator()() const {
+            copy(&_LINKER_INTERN_scratch_x_load_,
+                 &_LINKER_INTERN_scratch_x_data_start_,
+                 &_LINKER_INTERN_scratch_x_data_end_);
+            copy(&_LINKER_INTERN_scratch_y_load_,
+                 &_LINKER_INTERN_scratch_y_data_start_,
+                 &_LINKER_INTERN_scratch_y_data_end_);
+            zero(&_LINKER_INTERN_scratch_x_bss_start_, &_LINKER_INTERN_scratch_x_bss_end_);
+            zero(&_LINKER_INTERN_scratch_y_bss_start_, &_LINKER_INTERN_scratch_y_bss_end_);
+        }
+    };
+#endif
+
+    // The stack guard's per-boot value (Kvasir_SDK StartUp.hpp seedStackGuard): 32 reads of
+    // ROSC.RANDOMBIT (RP2040 datasheet 2.17.8 Table 264, md line 10726). Random only while the
+    // cores do not run from the ROSC (2.17.5, md line 10685): read after coreClockInit(), which
+    // moves clk_sys to pll_sys and leaves the ROSC running (2.17.1, md line 10635). A ROSC that is
+    // not stable (STATUS.STABLE, Table 271) gives the old constant. NOT cryptographic (2.17.5,
+    // Table 272): enough to make the canary differ between boots; seedStackGuard zeroes the low byte.
+    template<typename... Ts>
+    struct StackGuardEntropy<Tag::User, Ts...> {
+        [[gnu::always_inline]] std::uint32_t operator()() const {
+            using ROSC = Kvasir::Peripheral::ROSC::Registers<>;
+            if(!apply(read(ROSC::STATUS::stable))) { return 0xdeadc0deU; }
+            std::uint32_t bits{};
+            for(unsigned i = 0; i < 32; ++i) {
+                bits = (bits << 1U) | apply(read(ROSC::RANDOMBIT::randombit));
+            }
+            return bits;
+        }
     };
 }}   // namespace Kvasir::Startup
 

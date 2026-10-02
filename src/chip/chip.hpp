@@ -34,6 +34,7 @@
 #include "rp_common/I2CQueued.hpp"
 #include "rp_common/Io.hpp"
 #include "rp_common/PIO.hpp"
+#include "rp_common/RegisterAlias.hpp"   // before every driver: Register::atomic on the aliases
 #include "rp_common/SPI.hpp"
 #include "rp_common/Timer.hpp"
 #include "rp_common/UART.hpp"
