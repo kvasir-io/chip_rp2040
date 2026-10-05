@@ -41,6 +41,17 @@ _LINKER_INTERN_scratch_x_end_   = ORIGIN(scratch_x) + LENGTH(scratch_x);
 _LINKER_INTERN_scratch_y_start_ = ORIGIN(scratch_y);
 _LINKER_INTERN_scratch_y_end_   = ORIGIN(scratch_y) + LENGTH(scratch_y);
 
+/* An image that links boot2 has it in ram: named here (where it landed as an orphan before, right after .vectors; no
+   KEEP, so an image without it still has none), so the stack (common_stack_body.inc.ld) can leave room for exactly
+   its size - GNU ld refuses SIZEOF() of an orphan ("undefined section"). Assigned before the INCLUDE: assigned after
+   it, lld takes the value one layout pass late (the stack comes out too big). */
+SECTIONS {
+    .boot2 : {
+        *(.boot2)
+    } > ram
+} INSERT AFTER .vectors;
+_LINKER_INTERN_chip_ram_other_size_ = SIZEOF(.boot2);
+
 INCLUDE common_ram_only.ld
 
 /* The scratch banks' initialised part, loaded where it runs (load address = run address: ExtraMemoryInit copies

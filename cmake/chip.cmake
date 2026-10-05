@@ -32,7 +32,20 @@ set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/../src/chip/divider.S PROP
 set(CHIP_LINKER_OPTIONS --wrap=__aeabi_idiv --wrap=__aeabi_idivmod --wrap=__aeabi_ldivmod --wrap=__aeabi_uidiv
                         --wrap=__aeabi_uidivmod --wrap=__aeabi_uldivmod)
 
-svd_convert(peripherals SVD_FILE ${CMAKE_CURRENT_LIST_DIR}/../chip.svd OUTPUT_DIRECTORY peripherals)
+# the write-only guard: every write-only field of the SVD is classified (oneToSet, a key, or <!-- Kvasir: write-only
+# accepted -->), so a new one stops the build; registers with no readable field are never read
+svd_convert(
+    peripherals
+    SVD_FILE
+    ${CMAKE_CURRENT_LIST_DIR}/../chip.svd
+    OUTPUT_DIRECTORY
+    peripherals
+    WRITE_ONLY_GUARD
+    error
+    WRITE_ONLY_REGISTERS
+    derived
+    WRITE_ONLY_MASK
+    ON)
 
 # kvasir_devices: chip.hpp includes its drivers unconditionally (rp_common/I2CQueued.hpp -> I2CBusRecovery.hpp ->
 # kvasir/Devices/I2C/LineRecovery.hpp, and the USB backend), so every image needs it. Found like CHIP_ROOT
