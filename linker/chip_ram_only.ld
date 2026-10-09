@@ -55,7 +55,7 @@ _LINKER_INTERN_chip_ram_other_size_ = SIZEOF(.boot2);
 INCLUDE common_ram_only.ld
 
 /* The scratch banks' initialised part, loaded where it runs (load address = run address: ExtraMemoryInit copies
-   nothing). In TARGET_EXTRA_FLASH_SECTIONS like in chip.ld, so the hex the debugger loads carries it. */
+   nothing). Loaded, so the hex the debugger loads carries it (Kvasir_SDK cmake/tools/elf_image.py). */
 SECTIONS {
     .scratch_x : AT(ADDR(.scratch_x)) {
         . = ALIGN(4);

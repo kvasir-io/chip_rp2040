@@ -63,8 +63,8 @@ _LINKER_INTERN_scratch_y_end_   = ORIGIN(scratch_y) + LENGTH(scratch_y);
 INCLUDE common_ram.ld
 
 /* The scratch banks' initialised part (KVASIR_COREn_DATA / _CODE, and pico-sdk style .scratch_x.<name>): its load
-   image follows .data's in flash and is copied by the chip's ExtraMemoryInit (src/chip/StartUp.hpp). The sections
-   are in TARGET_EXTRA_FLASH_SECTIONS (cmake/chip.cmake), or the hex/uf2 would carry no load image for them. */
+   image follows .data's in flash and is copied by the chip's ExtraMemoryInit (src/chip/StartUp.hpp). Loaded, so the
+   hex/uf2 carry it (Kvasir_SDK cmake/tools/elf_image.py takes every section the linker loads). */
 SECTIONS {
     .scratch_x : AT(_LINKER_INTERN_data_end_flash_) {
         . = ALIGN(4);

@@ -5,9 +5,6 @@ set(TARGET_UF2_CODE 0xE48BFF56)
 set(TARGET_FLASH_SIZE 2096896)
 set(TARGET_RAM_SIZE 262144)
 set(TARGET_EEPROM_SIZE 0)
-# .scratch_x / .scratch_y: the load images of the SRAM4/SRAM5 sections (linker/chip.ld). Not in this list, the hex and
-# uf2 would carry nothing for them and ExtraMemoryInit would copy erased flash into the banks.
-set(TARGET_EXTRA_FLASH_SECTIONS .boot2 .scratch_x .scratch_y)
 # The SRAM4/SRAM5 scratch banks (linker/chip.ld), 4 KiB each (RP2040 datasheet 2.2.2: SRAM4_BASE 0x20040000, SRAM5_BASE
 # 0x20041000, SRAM_END 0x20042000). Kvasir_SDK util.cmake: CORE1_STACK_PLACEMENT scratch puts core 1's stack into SRAM4
 # (at most this many bytes), the SCRATCH_BANKS flag turns on the KVASIR_COREn_{DATA,BSS,CODE} attributes and the
