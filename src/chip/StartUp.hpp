@@ -2,6 +2,8 @@
 #include "core/core.hpp"
 #include "kvasir/Common/Core.hpp"
 #include "peripherals/ROSC.hpp"
+#include "peripherals/SYSCFG.hpp"
+#include "peripherals/XIP_CTRL.hpp"
 #include "rp_common/Multicore.hpp"
 
 #include <array>
@@ -45,6 +47,21 @@ namespace Kvasir { namespace Startup {
         void operator()() {
             Core::startup();
 
+            // Core 1 back into the boot ROM's holding pen: a start without a chip reset may leave a previous image's
+            // core 1 running in the RAM this image is about to fill. PSM FRCE_OFF.PROC1 (RP2040 datasheet Table 198).
+            Multicore::resetCore1();
+
+            // Flush the XIP cache: after a reset of core 0 alone, core 1 may have filled lines while the boot ROM
+            // reconfigured the SSI (2.4.2.9, 2.8.1); only an XIP reset or a FLUSH write clears them (2.6.3.2).
+            // Reading FLUSH stalls until the flush is done (Table 156).
+            apply(
+              write(Kvasir::Peripheral::XIP_CTRL::Registers<>::FLUSH::flush, Register::value<1>()));
+            (void)apply(read(Kvasir::Peripheral::XIP_CTRL::Registers<>::FLUSH::FULLREGISTER));
+
+            // Watchdog off until the image arms it: only rst_n_run resets it (RP2040 datasheet 4.7.1), so a previous
+            // image's watchdog reboot leaves CTRL.ENABLE set.
+            apply(clear(Kvasir::Peripheral::WATCHDOG::Registers<>::CTRL::enable));
+
             using Reset = Kvasir::Peripheral::RESETS::Registers<>::RESET;
             apply(set(Reset::usbctrl),
                   set(Reset::uart1),
@@ -71,6 +88,14 @@ namespace Kvasir { namespace Startup {
                   set(Reset::dma),
                   set(Reset::busctrl),
                   set(Reset::adc));
+
+            // Clear PROC0_NMI_MASK (SYSCFG + 0x00, RP2040 datasheet 2.21.2 Table 354): it survives a processor reset
+            // (RP2350 datasheet 3.2.1) and syscfg stays out of reset above.
+            using ResetDone = Kvasir::Peripheral::RESETS::Registers<>::RESET_DONE;
+            Kvasir::Register::waitUntil<Kvasir::Chip::ResetDoneBound>(
+              Kvasir::Register::isSet(ResetDone::syscfg));
+            using Syscfg = Kvasir::Peripheral::SYSCFG::Registers<>;
+            apply(write(Syscfg::PROC0_NMI_MASK::FULLREGISTER, Register::value<0U>()));
 
             using PSM_WDSEL = Kvasir::Peripheral::PSM::Registers<>::WDSEL;
             apply(set(PSM_WDSEL::proc1),
@@ -120,6 +145,16 @@ namespace Kvasir { namespace Startup {
         }
     };
 
+}}   // namespace Kvasir::Startup
+
+#if defined(KVASIR_MULTICORE) && KVASIR_MULTICORE && !(defined(KVASIR_RAM_ONLY) && KVASIR_RAM_ONLY)
+    // Multicore flash images only (armed by SecondaryCoreInit::armCoreResetGuard); included below FirstInitStep so
+    // its source lines, which a sanitizer records, do not move
+    #include "CoreResetGuard.hpp"
+#endif
+
+namespace Kvasir { namespace Startup {
+
     // The second core (kvasir/StartUp/SecondaryCore.hpp). What core 1 has to do for itself
     // is nothing on the RP2040: no coprocessor to enable, no exclusives to route, so only
     // the bootrom handshake and the PSM reset are here. The atomic shim's cross-core lock
@@ -137,6 +172,14 @@ namespace Kvasir { namespace Startup {
         }
 
         static void reset() { Multicore::resetCore1(); }
+
+        // Called by SecondaryCore's runtimeInit before core 1 starts, unless its list holds
+        // Kvasir::Startup::NoCoreResetGuard (CoreResetGuard.hpp). No-op in a RAM image.
+        static void armCoreResetGuard() {
+#if defined(KVASIR_MULTICORE) && KVASIR_MULTICORE && !(defined(KVASIR_RAM_ONLY) && KVASIR_RAM_ONLY)
+            Kvasir::CoreResetGuard::runtimeInit();
+#endif
+        }
     };
 
 #if defined(KVASIR_CORE_SCRATCH)

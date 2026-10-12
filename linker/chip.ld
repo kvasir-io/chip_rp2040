@@ -87,8 +87,24 @@ SECTIONS {
                + (_LINKER_INTERN_scratch_x_bss_end_ - _LINKER_INTERN_scratch_x_bss_start_)
                + (_LINKER_INTERN_scratch_y_bss_end_ - _LINKER_INTERN_scratch_y_bss_start_) == 0,
            "ERROR: objects in the scratch banks (.scratch_x/y.*, .bss.scratch_x/y*) need SCRATCH_BANKS")
-    ASSERT(LOADADDR(.scratch_y) + SIZEOF(.scratch_y) <= ORIGIN(flash) + LENGTH(flash) - 4K,
-           "ERROR: the scratch banks' load image runs into .eeprom")
+}
+
+/* Kvasir::CoreResetGuard's routine (src/chip/CoreResetGuard.hpp; empty without it): the boot ROM's watchdog boot
+   vector jumps there before the image runs, so it sits in SRAM5 apart from everything else, below the top 256 bytes
+   where the ROM loads boot2 (RP2040 datasheet 2.8.1). Copied from its load image by the guard's runtimeInit. */
+SECTIONS {
+    .core_reset_guard : AT(LOADADDR(.scratch_y) + SIZEOF(.scratch_y)) {
+        . = ALIGN(4);
+        _LINKER_INTERN_core_reset_guard_start_ = .;
+        *(.core_reset_guard*)
+        . = ALIGN(4);
+        _LINKER_INTERN_core_reset_guard_end_ = .;
+    } > scratch_y
+    _LINKER_INTERN_core_reset_guard_load_ = LOADADDR(.core_reset_guard);
+    ASSERT(_LINKER_INTERN_core_reset_guard_end_ <= ORIGIN(scratch_y) + LENGTH(scratch_y) - 256,
+           "ERROR: the CoreResetGuard routine runs into the boot ROM's boot2 area at the top of SRAM5")
+    ASSERT(LOADADDR(.core_reset_guard) + SIZEOF(.core_reset_guard) <= ORIGIN(flash) + LENGTH(flash) - 4K,
+           "ERROR: the load image of the scratch banks and the CoreResetGuard routine runs into .eeprom")
 }
 
 /* The flash's last 4 KiB sector is Kvasir::Flash::SimpleEeprom's (.eeprom in flash.hpp): the

@@ -40,10 +40,18 @@ struct InterruptImpl<PinConfig::ChipVariant::RP2040> : CoreInterrupts {
     static constexpr Type<23> i2c0{};
     static constexpr Type<24> i2c1{};
     static constexpr Type<25> rtc{};
+    // NVIC lines 26..31 are tied to zero but can be forced through NVIC_ISPR (RP2040 datasheet 2.3.2): vector entries
+    // for them, so a forced one hits the default handler instead of a fetch past the table.
+    static constexpr Type<26> spare_0{};
+    static constexpr Type<27> spare_1{};
+    static constexpr Type<28> spare_2{};
+    static constexpr Type<29> spare_3{};
+    static constexpr Type<30> spare_4{};
+    static constexpr Type<31> spare_5{};
 
     struct InterruptOffsetTraits {
         static constexpr int        begin    = -14;
-        static constexpr int        end      = 26;
+        static constexpr int        end      = 32;
         static constexpr std::array disabled = {-12, -11, -10, -9, -8, -7, -6, -4, -3};
         static constexpr std::array noEnable
           = {nonMaskableInt.index(), sVCall.index(), pendSV.index()};

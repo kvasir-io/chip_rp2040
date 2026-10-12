@@ -80,4 +80,13 @@ SECTIONS {
            "ERROR: objects in the scratch banks (.scratch_x/y.*, .bss.scratch_x/y*) need SCRATCH_BANKS")
 }
 
+/* Kvasir::CoreResetGuard (src/chip/CoreResetGuard.hpp) needs a flash image: the boot ROM never boots a RAM image */
+SECTIONS {
+    .core_reset_guard : { *(.core_reset_guard*) } > scratch_y
+    ASSERT(SIZEOF(.core_reset_guard) == 0, "ERROR: Kvasir::CoreResetGuard needs a flash image, not RAM_ONLY")
+}
+_LINKER_INTERN_core_reset_guard_start_ = 0;
+_LINKER_INTERN_core_reset_guard_end_   = 0;
+_LINKER_INTERN_core_reset_guard_load_  = 0;
+
 INCLUDE common.ld
