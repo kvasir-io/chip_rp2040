@@ -45,3 +45,9 @@
 #include "rp_common/pwm.hpp"
 #include "rp_common/usb.hpp"
 #include "rp_common/watchdog.hpp"
+
+namespace Kvasir { namespace Startup { namespace detail {
+    // _flash_flush_cache ('F','C', RP2040 datasheet 2.8.3.1.3): "Flush and enable the XIP cache" - from the boot ROM,
+    // so no XIP fetch is in flight while the tags are cleared (StartUp.hpp, FirstInitStep)
+    inline void flushXipCacheInRom() { Kvasir::RomFunctions::call<'F', 'C', void (*)()>(); }
+}}}   // namespace Kvasir::Startup::detail

@@ -42,6 +42,12 @@ namespace Kvasir { namespace Startup {
       0x180000f4, 0xa0002022, 0x10000100, 0xe000ed08, 0x00000000, 0x00000000, 0x00000000,
       0x7a4eb274};
 
+    namespace detail {
+        // the XIP cache flushed by the boot ROM (defined in chip.hpp, after rp_common/bootrom_functions.hpp, which
+        // needs this header first)
+        inline void flushXipCacheInRom();
+    }   // namespace detail
+
     template<typename... Ts>
     struct FirstInitStep<Tag::User, Ts...> {
         void operator()() {
@@ -53,10 +59,14 @@ namespace Kvasir { namespace Startup {
 
             // Flush the XIP cache: after a reset of core 0 alone, core 1 may have filled lines while the boot ROM
             // reconfigured the SSI (2.4.2.9, 2.8.1); only an XIP reset or a FLUSH write clears them (2.6.3.2).
-            // Reading FLUSH stalls until the flush is done (Table 156).
-            apply(
-              write(Kvasir::Peripheral::XIP_CTRL::Registers<>::FLUSH::flush, Register::value<1>()));
-            (void)apply(read(Kvasir::Peripheral::XIP_CTRL::Registers<>::FLUSH::FULLREGISTER));
+            // The flush runs in the boot ROM (_flash_flush_cache, 'F','C', 2.8.3.1.3), never from code fetched
+            // through XIP: a FLUSH written from flash can leave one cache set holding the other way's data (not in
+            // the datasheet; measured). First any flush in progress (an XIP reset's) to its end: STAT.FLUSH_READY
+            // (Table 157); a flush takes just over 1024 cycles (2.6.3.2), a poll at least 4.
+            Kvasir::Register::waitUntil<Kvasir::Register::Bound::Polls<1'000>>(
+              Kvasir::Register::isSet(
+                Kvasir::Peripheral::XIP_CTRL::Registers<>::STAT::flush_ready));
+            detail::flushXipCacheInRom();
 
             // Watchdog off until the image arms it: only rst_n_run resets it (RP2040 datasheet 4.7.1), so a previous
             // image's watchdog reboot leaves CTRL.ENABLE set.

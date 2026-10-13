@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <kvasir/Register/Register.hpp>
 #include <peripherals/SIO.hpp>
 
 // The lock under the atomic shim in a multicore RP2040 build (kvasir/Atomic/detail/
@@ -12,18 +13,16 @@
 namespace Kvasir::Atomic {
 
 struct CrossCoreLock {
-    static constexpr std::uint32_t Address
-      = Kvasir::Peripheral::SIO::Registers<0>::SPINLOCK31::Addr::value;
+    using Lock = Kvasir::Peripheral::SIO::Registers<0>::SPINLOCK31;
 
     static void acquire() {
-        auto volatile& lock = *reinterpret_cast<std::uint32_t volatile*>(Address);
-        while(lock == 0) {}
+        while(Kvasir::Register::readWhole(Lock::FULLREGISTER) == 0) {}
         asm volatile("dmb" ::: "memory");
     }
 
     static void release() {
         asm volatile("dmb" ::: "memory");
-        *reinterpret_cast<std::uint32_t volatile*>(Address) = 1;
+        Kvasir::Register::writeWhole(Lock::FULLREGISTER, 1U);
     }
 };
 
