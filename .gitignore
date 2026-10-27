@@ -1,1 +1,1 @@
-justfile
+tests/**/build*/

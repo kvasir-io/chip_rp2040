@@ -1,0 +1,22 @@
+name: CI
+
+# conformance: the chip's conformance tree - the RP chips' one tree in the chip_rp_common submodule
+# (src/chip/rp_common/tests/conformance), configured for this chip -, Kvasir_SDK package-conformance.yml.
+
+on:
+    push:
+        branches:
+            - master
+    pull_request:
+        branches:
+            - master
+    workflow_dispatch:
+
+jobs:
+    conformance:
+        uses: kvasir-io/Kvasir_SDK/.github/workflows/package-conformance.yml@master
+        with: {source-dir: src/chip/rp_common/tests/conformance, cmake-args: -DCONFORMANCE_CHIP=rp2040}
+
+    # the include layering of this repository against Kvasir_SDK tools/layers.toml (any finding fails)
+    layers:
+        uses: kvasir-io/Kvasir_SDK/.github/workflows/package-layers.yml@master

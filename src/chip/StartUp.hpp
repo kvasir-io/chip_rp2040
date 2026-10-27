@@ -1,17 +1,17 @@
 #pragma once
+#include "BootTraits.hpp"
 #include "core/core.hpp"
-#include "kvasir/Common/Core.hpp"
-#include "peripherals/ROSC.hpp"
-#include "peripherals/SYSCFG.hpp"
-#include "peripherals/XIP_CTRL.hpp"
-#include "rp_common/Multicore.hpp"
+#include "kvasir/Port/Hooks.hpp"
+#include "kvasir/StartUp/MemoryInit.hpp"
+#include "kvasir/Util/attributes.hpp"
+#include "rp_common/BootSequence.hpp"
+#include "rp_common/Rosc.hpp"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 
-#if defined(KVASIR_CORE_SCRATCH)
+#ifdef KVASIR_CORE_SCRATCH
 // linker/chip.ld, chip_ram_only.ld
 extern "C" {
 extern std::byte _LINKER_INTERN_scratch_x_load_;
@@ -28,9 +28,11 @@ extern std::byte _LINKER_INTERN_scratch_y_bss_end_;
 #endif
 
 namespace Kvasir { namespace Startup {
+    // inline: one copy per image whichever TUs include this header (a second copy overflows the 256-byte .boot2 and
+    // fails chip.ld's ASSERT); KVASIR_SECTION keeps the section under gcc's LTO (kvasir/Util/attributes.hpp)
     [[gnu::used,
-      gnu::section(
-        ".boot2")]] static constexpr std::array<std::uint32_t, 64> second_stage_bootloader{
+      KVASIR_SECTION(
+        ".boot2")]] inline constexpr std::array<std::uint32_t, 64> secondStageBootloader{
       0x4b32b500, 0x60582021, 0x21026898, 0x60984388, 0x611860d8, 0x4b2e6158, 0x60992100,
       0x61592102, 0x22f02101, 0x492b5099, 0x21016019, 0x20356099, 0xf844f000, 0x42902202,
       0x2106d014, 0xf0006619, 0x6e19f834, 0x66192101, 0x66182000, 0xf000661a, 0x6e19f82c,
@@ -42,122 +44,15 @@ namespace Kvasir { namespace Startup {
       0x180000f4, 0xa0002022, 0x10000100, 0xe000ed08, 0x00000000, 0x00000000, 0x00000000,
       0x7a4eb274};
 
-    namespace detail {
-        // the XIP cache flushed by the boot ROM (defined in chip.hpp, after rp_common/bootrom_functions.hpp, which
-        // needs this header first)
-        inline void flushXipCacheInRom();
-    }   // namespace detail
-
+    // RP boot sequence (rp_common/BootSequence.hpp) over the RP2040's steps (chip/BootTraits.hpp)
     template<typename... Ts>
     struct FirstInitStep<Tag::User, Ts...> {
-        void operator()() {
-            Core::startup();
-
-            // Core 1 back into the boot ROM's holding pen: a start without a chip reset may leave a previous image's
-            // core 1 running in the RAM this image is about to fill. PSM FRCE_OFF.PROC1 (RP2040 datasheet Table 198).
-            Multicore::resetCore1();
-
-            // Flush the XIP cache: after a reset of core 0 alone, core 1 may have filled lines while the boot ROM
-            // reconfigured the SSI (2.4.2.9, 2.8.1); only an XIP reset or a FLUSH write clears them (2.6.3.2).
-            // The flush runs in the boot ROM (_flash_flush_cache, 'F','C', 2.8.3.1.3), never from code fetched
-            // through XIP: a FLUSH written from flash can leave one cache set holding the other way's data (not in
-            // the datasheet; measured). First any flush in progress (an XIP reset's) to its end: STAT.FLUSH_READY
-            // (Table 157); a flush takes just over 1024 cycles (2.6.3.2), a poll at least 4.
-            Kvasir::Register::waitUntil<Kvasir::Register::Bound::Polls<1'000>>(
-              Kvasir::Register::isSet(
-                Kvasir::Peripheral::XIP_CTRL::Registers<>::STAT::flush_ready));
-            detail::flushXipCacheInRom();
-
-            // Watchdog off until the image arms it: only rst_n_run resets it (RP2040 datasheet 4.7.1), so a previous
-            // image's watchdog reboot leaves CTRL.ENABLE set.
-            apply(clear(Kvasir::Peripheral::WATCHDOG::Registers<>::CTRL::enable));
-
-            using Reset = Kvasir::Peripheral::RESETS::Registers<>::RESET;
-            apply(set(Reset::usbctrl),
-                  set(Reset::uart1),
-                  set(Reset::uart0),
-                  set(Reset::timer),
-                  set(Reset::tbman),
-                  clear(Reset::sysinfo),
-                  clear(Reset::syscfg),
-                  set(Reset::spi1),
-                  set(Reset::spi0),
-                  set(Reset::rtc),
-                  set(Reset::pwm),
-                  set(Reset::pll_usb),
-                  clear(Reset::pll_sys),
-                  set(Reset::pio1),
-                  set(Reset::pio0),
-                  clear(Reset::pads_qspi),
-                  set(Reset::pads_bank0),
-                  set(Reset::jtag),
-                  clear(Reset::io_qspi),
-                  set(Reset::io_bank0),
-                  set(Reset::i2c1),
-                  set(Reset::i2c0),
-                  set(Reset::dma),
-                  set(Reset::busctrl),
-                  set(Reset::adc));
-
-            // Clear PROC0_NMI_MASK (SYSCFG + 0x00, RP2040 datasheet 2.21.2 Table 354): it survives a processor reset
-            // (RP2350 datasheet 3.2.1) and syscfg stays out of reset above.
-            using ResetDone = Kvasir::Peripheral::RESETS::Registers<>::RESET_DONE;
-            Kvasir::Register::waitUntil<Kvasir::Chip::ResetDoneBound>(
-              Kvasir::Register::isSet(ResetDone::syscfg));
-            using Syscfg = Kvasir::Peripheral::SYSCFG::Registers<>;
-            apply(write(Syscfg::PROC0_NMI_MASK::FULLREGISTER, Register::value<0U>()));
-
-            using PSM_WDSEL = Kvasir::Peripheral::PSM::Registers<>::WDSEL;
-            apply(set(PSM_WDSEL::proc1),
-                  set(PSM_WDSEL::proc0),
-                  set(PSM_WDSEL::sio),
-                  set(PSM_WDSEL::vreg_and_chip_reset),
-                  set(PSM_WDSEL::xip),
-                  set(PSM_WDSEL::sram5),
-                  set(PSM_WDSEL::sram4),
-                  set(PSM_WDSEL::sram3),
-                  set(PSM_WDSEL::sram2),
-                  set(PSM_WDSEL::sram1),
-                  set(PSM_WDSEL::sram0),
-                  set(PSM_WDSEL::rom),
-                  set(PSM_WDSEL::busfabric),
-                  set(PSM_WDSEL::resets),
-                  set(PSM_WDSEL::clocks),
-                  set(PSM_WDSEL::xosc),
-                  set(PSM_WDSEL::rosc));
-
-            using WDSEL = Kvasir::Peripheral::RESETS::Registers<>::WDSEL;
-            apply(set(WDSEL::usbctrl),
-                  set(WDSEL::uart1),
-                  set(WDSEL::uart0),
-                  set(WDSEL::timer),
-                  set(WDSEL::tbman),
-                  set(WDSEL::sysinfo),
-                  set(WDSEL::syscfg),
-                  set(WDSEL::spi1),
-                  set(WDSEL::spi0),
-                  set(WDSEL::rtc),
-                  set(WDSEL::pwm),
-                  set(WDSEL::pll_usb),
-                  set(WDSEL::pll_sys),
-                  set(WDSEL::pio1),
-                  set(WDSEL::pio0),
-                  set(WDSEL::pads_qspi),
-                  set(WDSEL::pads_bank0),
-                  set(WDSEL::jtag),
-                  set(WDSEL::io_qspi),
-                  set(WDSEL::io_bank0),
-                  set(WDSEL::i2c1),
-                  set(WDSEL::i2c0),
-                  set(WDSEL::dma),
-                  set(WDSEL::busctrl),
-                  set(WDSEL::adc));
-        }
+        void operator()() { Rp::firstInit<Rp::BootTraits>(); }
     };
 
 }}   // namespace Kvasir::Startup
 
-#if defined(KVASIR_MULTICORE) && KVASIR_MULTICORE && !(defined(KVASIR_RAM_ONLY) && KVASIR_RAM_ONLY)
+#if KVASIR_RP_CORE_RESET_GUARDED
     // Multicore flash images only (armed by SecondaryCoreInit::armCoreResetGuard); included below FirstInitStep so
     // its source lines, which a sanitizer records, do not move
     #include "CoreResetGuard.hpp"
@@ -168,31 +63,22 @@ namespace Kvasir { namespace Startup {
     // The second core (kvasir/StartUp/SecondaryCore.hpp). What core 1 has to do for itself
     // is nothing on the RP2040: no coprocessor to enable, no exclusives to route, so only
     // the bootrom handshake and the PSM reset are here. The atomic shim's cross-core lock
-    // for a multicore build is chip/CrossCoreLock.hpp.
+    // for a multicore build is chip/CrossCoreLock.hpp (Port::CrossCoreLock, included below).
     template<typename... Ts>
-    struct SecondaryCoreInit<Tag::User, Ts...> {
-        static constexpr std::uint32_t cpacrEnable = 0;
+    struct SecondaryCoreInit<Tag::User, Ts...>
+      : Rp::SecondaryCoreInitBase<
+#if KVASIR_RP_CORE_RESET_GUARDED
+          Kvasir::CoreResetGuard
+#else
+          Rp::NoGuard
+#endif
+          > {
+        static constexpr std::uint32_t cpacrEnable = Core::SecondaryCoreTraits::cpacrEnable;
 
         void operator()() {}
-
-        [[nodiscard]] static bool launch(std::uint32_t entry,
-                                         std::uint32_t sp,
-                                         std::uint32_t vtor) {
-            return Multicore::launchCore1(entry, sp, vtor);
-        }
-
-        static void reset() { Multicore::resetCore1(); }
-
-        // Called by SecondaryCore's runtimeInit before core 1 starts, unless its list holds
-        // Kvasir::Startup::NoCoreResetGuard (CoreResetGuard.hpp). No-op in a RAM image.
-        static void armCoreResetGuard() {
-#if defined(KVASIR_MULTICORE) && KVASIR_MULTICORE && !(defined(KVASIR_RAM_ONLY) && KVASIR_RAM_ONLY)
-            Kvasir::CoreResetGuard::runtimeInit();
-#endif
-        }
     };
 
-#if defined(KVASIR_CORE_SCRATCH)
+#ifdef KVASIR_CORE_SCRATCH
     // SCRATCH_BANKS (Kvasir_SDK util.cmake): the SRAM4/SRAM5 sections of linker/chip.ld - copy
     // the KVASIR_COREn_DATA/_CODE load images out of flash, zero KVASIR_COREn_BSS. Right after
     // initMemory(), before any constructor. Core 1's stack in SRAM4 is not touched here:
@@ -201,18 +87,16 @@ namespace Kvasir { namespace Startup {
     // refuses scratch-bank objects.
     template<typename... Ts>
     struct ExtraMemoryInit<Tag::User, Ts...> {
-        [[gnu::always_inline]] static void copy(std::byte const* from,
-                                                std::byte*       to,
+        // the SDK's helpers (kvasir/StartUp/MemoryInit.hpp), with start/end symbols
+        [[gnu::always_inline]] static void copy(std::byte const* load,
+                                                std::byte*       start,
                                                 std::byte*       end) {
-            // the linker's symbols are distinct objects to the compiler: hide them from it
-            asm("" : "+l"(from), "+l"(to), "+l"(end));
-            if(from != to) { std::memcpy(to, from, static_cast<std::size_t>(end - to)); }
+            copyImage(load, start, static_cast<std::size_t>(end - start), true);
         }
 
-        [[gnu::always_inline]] static void zero(std::byte* from,
+        [[gnu::always_inline]] static void zero(std::byte* start,
                                                 std::byte* end) {
-            asm("" : "+l"(from), "+l"(end));
-            std::memset(from, 0, static_cast<std::size_t>(end - from));
+            zeroRange(start, static_cast<std::size_t>(end - start));
         }
 
         [[gnu::always_inline]] void operator()() const {
@@ -237,15 +121,47 @@ namespace Kvasir { namespace Startup {
     template<typename... Ts>
     struct StackGuardEntropy<Tag::User, Ts...> {
         [[gnu::always_inline]] std::uint32_t operator()() const {
-            using ROSC = Kvasir::Peripheral::ROSC::Registers<>;
-            if(!apply(read(ROSC::STATUS::stable))) { return 0xdeadc0deU; }
+            if(!Rosc::stable()) { return 0xdeadc0deU; }
             std::uint32_t bits{};
-            for(unsigned i = 0; i < 32; ++i) {
-                bits = (bits << 1U) | apply(read(ROSC::RANDOMBIT::randombit));
-            }
+            for(unsigned i = 0; i < 32; ++i) { bits = (bits << 1U) | Rosc::randomBit(); }
             return bits;
         }
     };
 }}   // namespace Kvasir::Startup
 
-#include "kvasir/StartUp/StartUp.hpp"
+#if defined(KVASIR_MULTICORE) && KVASIR_MULTICORE
+    // Port::CrossCoreLock<Tag::User>: the atomic shim's lock, which the main TU's kvasir/StartUp/StartUp.hpp defines its
+    // extern "C" entry points on (kvasir/StartUp/Runtime/LibAtomic.hpp; read late, so before or after it)
+    #include "CrossCoreLock.hpp"
+#endif
+
+// An address no bus slave answers at, for Kvasir::Fault::Inject (kvasir/Runtime/FaultInject.hpp): 0xF0000000 lies
+// in none of the address map's segments (RP2040 datasheet 2.2.1 Table 15: ROM 0x0, XIP 0x1, SRAM 0x2, APB 0x4,
+// AHB-Lite 0x5, IOPORT 0xd, M0+ internal 0xe), and "unmapped address ranges raise a bus error when accessed" (2.2); the
+// M0+ puts every access above 0xEFFFFFFF on its AHB-Lite port (2.4.3.4, Cortex-M0+ TRM DDI0484C 3.4): a HardFault.
+template<>
+struct Kvasir::Port::UnmappedAddress<Kvasir::Tag::User> {
+    static constexpr std::uintptr_t value = 0xF000'0000U;
+};
+
+// Startup::second_stage_bootloader (.boot2, at the top of this file) is pico-sdk 2.3.1's
+// src/rp2040/boot_stage2/boot2_w25q080.S built with the settings of its default board header (boards/pico.h: W25Q080,
+// PICO_FLASH_SPI_CLKDIV 2) and padded by its pad_checksum -s 0xffffffff - the 256 bytes compared equal. The boot ROM
+// copies it to SRAM5 and enters it only if the last word is the CRC32 of the first 252 bytes: polynomial 0x04c11db7,
+// no reflection, initial 0xffffffff, no final XOR, the checksum little-endian (RP2040 datasheet 2.8.1.3.1, md l.6364)
+// - CRC-32/MPEG-2. Words changed without their checksum would drop every image into the USB boot.
+#include "kvasir/Util/Crc.hpp"
+
+namespace Kvasir::Startup::Detail {
+consteval bool boot2ChecksumHolds() {
+    Kvasir::Crc::Engine<Kvasir::Crc::Presets::crc32Mpeg2, 0> crc{};
+    for(std::size_t i = 0; i != 252; ++i) {   // the words' bytes in memory order
+        crc.update(static_cast<std::byte>(secondStageBootloader[i / 4] >> (8 * (i % 4))));
+    }
+    return crc.finish() == secondStageBootloader[63];
+}
+}   // namespace Kvasir::Startup::Detail
+
+static_assert(
+  Kvasir::Startup::Detail::boot2ChecksumHolds(),
+  "chip/StartUp.hpp: the last .boot2 word is not the boot ROM's CRC32 of the first 252 bytes");

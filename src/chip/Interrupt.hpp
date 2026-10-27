@@ -1,78 +1,33 @@
 #pragma once
-#pragma once
 #include "core/CoreInterrupts.hpp"
 #include "kvasir/Common/Interrupt.hpp"
-#include "rp_common/PinConfig.hpp"
+#include "kvasir/Port/Interrupts.hpp"
+#include "peripherals/Interrupts.hpp"
+#include "rp2040.hpp"
 
 #include <array>
 
 namespace Kvasir {
-
-template<PinConfig::ChipVariant Chip>
-struct InterruptImpl : CoreInterrupts {};
-
-template<>
-struct InterruptImpl<PinConfig::ChipVariant::RP2040> : CoreInterrupts {
-    // Device-specific interrupts for RP2040
-    static constexpr Type<0>  timer_0{};
-    static constexpr Type<1>  timer_1{};
-    static constexpr Type<2>  timer_2{};
-    static constexpr Type<3>  timer_3{};
-    static constexpr Type<4>  pwm_wrap{};
-    static constexpr Type<5>  usbctrl{};
-    static constexpr Type<6>  xip{};
-    static constexpr Type<7>  pio0_0{};
-    static constexpr Type<8>  pio0_1{};
-    static constexpr Type<9>  pio1_0{};
-    static constexpr Type<10> pio1_1{};
-    static constexpr Type<11> dma_0{};
-    static constexpr Type<12> dma_1{};
-    static constexpr Type<13> io_bank0{};
-    static constexpr Type<14> io_qspi{};
-    static constexpr Type<15> sio_proc0{};
-    static constexpr Type<16> sio_proc1{};
-    static constexpr Type<17> clocks{};
-    static constexpr Type<18> spi0{};
-    static constexpr Type<19> spi1{};
-    static constexpr Type<20> uart0{};
-    static constexpr Type<21> uart1{};
-    static constexpr Type<22> adc_fifo{};
-    static constexpr Type<23> i2c0{};
-    static constexpr Type<24> i2c1{};
-    static constexpr Type<25> rtc{};
-    // NVIC lines 26..31 are tied to zero but can be forced through NVIC_ISPR (RP2040 datasheet 2.3.2): vector entries
-    // for them, so a forced one hits the default handler instead of a fetch past the table.
-    static constexpr Type<26> spare_0{};
-    static constexpr Type<27> spare_1{};
-    static constexpr Type<28> spare_2{};
-    static constexpr Type<29> spare_3{};
-    static constexpr Type<30> spare_4{};
-    static constexpr Type<31> spare_5{};
-
-    struct InterruptOffsetTraits {
-        static constexpr int        begin    = -14;
-        static constexpr int        end      = 32;
-        static constexpr std::array disabled = {-12, -11, -10, -9, -8, -7, -6, -4, -3};
-        static constexpr std::array noEnable
-          = {nonMaskableInt.index(), sVCall.index(), pendSV.index()};
-        static constexpr std::array noDisable
-          = {nonMaskableInt.index(), sVCall.index(), pendSV.index()};
-        static constexpr std::array noSetPending = {sVCall.index(), hardFault.index()};
-        static constexpr std::array noClearPending
-          = {nonMaskableInt.index(), sVCall.index(), hardFault.index()};
-        static constexpr std::array noSetPriority = {nonMaskableInt.index(), hardFault.index()};
-
-        using FaultInterruptIndexs           = brigand::list<decltype(hardFault)>;
-        using FaultInterruptIndexsNeedEnable = brigand::list<>;
-    };
-};
-
-using Interrupt = InterruptImpl<PinConfig::CurrentChip>;
+// The core's exceptions (core/CoreInterrupts.hpp) and the device lines of chip.svd (svd_converter:
+// peripherals/Interrupts.hpp, the SVD's names lower-cased without IRQ: TIMER_IRQ_0 -> timer_0). Lines 26..31 are
+// tied to zero but can be forced through NVIC_ISPR (RP2040 datasheet 2.3.2): chip.svd names them SPARE_IRQ_0..5, so
+// a forced one has a vector entry and hits the default handler instead of a fetch past the table.
+struct Interrupt
+  : CoreInterrupts
+  , Peripheral::DeviceInterrupts {};
 
 namespace Nvic {
     template<>
-    struct InterruptOffsetTraits<void>
-      : InterruptImpl<PinConfig::CurrentChip>::InterruptOffsetTraits {};
+    struct InterruptOffsetTraits<Kvasir::Tag::User>
+      : Core::ChipInterruptTraits<Core::InterruptRules,
+                                  Peripheral::interruptEnd,
+                                  Peripheral::interruptGaps> {
+        // Lines that exist once per core: "there is one GPIO interrupt per bank, per core. These are completely
+        // independent" (RP2040 datasheet 2.3.2, md l.2923), so both cores may install an IO_BANK0/IO_QSPI handler
+        // (each enables through its own PROCn_INTE). Every other line, SIO_IRQ_PROC0/1 included, reaches both NVICs
+        // and belongs to one core (Startup refuses it in both vector tables).
+        static constexpr std::array perCore = {Interrupt::io_bank0.value, Interrupt::io_qspi.value};
+    };
 }   // namespace Nvic
 
 }   // namespace Kvasir
