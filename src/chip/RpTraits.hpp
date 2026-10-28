@@ -18,7 +18,7 @@ struct ChipTraits {
     static constexpr std::uint64_t roscBaseHzCeiling = 192'000'000;
     static constexpr std::uint64_t roscHzFloor       = 1'800'000;
     // The fastest clk_ref on the ring oscillator Kvasir lets it run at (rp_common clock_config.hpp onRingOscillator
-    // divides it there; WaitBounds.hpp XoscStableBound counts at it, clk_sys = clk_ref then): the boot's own 12 MHz -
+    // divides it there; WaitBounds.hpp XoscStableBoundFor counts at it, clk_sys = clk_ref then): the boot's own 12 MHz -
     // the datasheet gives clk_ref no maximum, its clock table "6 - 12MHz" nominal (Table 205, md l.8649).
     static constexpr std::uint64_t clkRefOnRoscHzCeiling = 12'000'000;
     // ROSC.DIV: written 0xaa0 + div, div 1..31 divides by div, 0 by 32, any other value by 31 (Table 269, md l.10863)
