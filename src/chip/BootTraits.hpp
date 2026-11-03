@@ -13,12 +13,12 @@
 #include "rp_common/BootSequence.hpp"
 #include "rp_common/Rom.hpp"
 
-namespace Kvasir { namespace Startup { namespace detail {
+namespace Kvasir { namespace Startup { namespace Detail {
     // _flash_flush_cache ('F','C', RP2040 datasheet 2.8.3.1.3): "Flush and enable the XIP cache" - from the boot ROM,
     // so no XIP fetch is in flight while the tags are cleared (afterCore1Parked below). Rom.hpp is the ROM table alone,
     // so this header compiles by itself.
     inline void flushXipCacheInRom() { Kvasir::RomFunctions::call<'F', 'C', void (*)()>(); }
-}}}   // namespace Kvasir::Startup::detail
+}}}   // namespace Kvasir::Startup::Detail
 
 namespace Kvasir::Rp {
 struct BootTraits {
@@ -31,7 +31,7 @@ struct BootTraits {
         // (Table 157); a flush takes just over 1024 cycles (2.6.3.2), a poll at least 4.
         Kvasir::Register::waitUntil<Kvasir::Register::Bound::Polls<1'000>>(
           Kvasir::Register::isSet(Kvasir::Peripheral::XIP_CTRL::Registers<>::STAT::flush_ready));
-        Startup::detail::flushXipCacheInRom();
+        Startup::Detail::flushXipCacheInRom();
 
         // Watchdog off until the image arms it: only rst_n_run resets it (RP2040 datasheet 4.7.1), so a previous
         // image's watchdog reboot leaves CTRL.ENABLE set.

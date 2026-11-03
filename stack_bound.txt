@@ -1,0 +1,16 @@
+# The stack bound's notes for RP2040 images (Kvasir_SDK cmake/tools/stack_bound.py; directives: its docstring).
+#
+# The boot ROM: 16 kB at 0x00000000 (RP2040 datasheet 2.8 "Bootrom": "limited to 16kB"). Its functions are found
+# through rom_table_lookup(), a 16-bit pointer at 0x00000018 (2.8.3 "Bootrom Contents"). A call into the ROM runs code
+# whose stack use the datasheet does not give and that is not measured here: every image that reaches one is a LOWER
+# BOUND, and the report names each caller.
+rom_region 0x00000000 0x00004000
+rom_pointer 0x18
+
+# Kvasir::Detail::FlashXipDisabler (chip_rp_common XipControl.hpp) keeps the ROM functions it looked up in members and
+# calls them from RAM while the flash is off
+rom Kvasir::Detail::FlashXipDisabler::*
+
+# RomFunctions::call (chip_rp_common Rom.hpp) hands the looked-up ROM function to std::invoke; when LTO keeps that
+# std::invoke out of line, its call through the parameter is the ROM call
+rom std::__2::__invoke_result_impl*

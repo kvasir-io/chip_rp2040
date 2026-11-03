@@ -75,7 +75,7 @@ namespace Kvasir { namespace Startup {
           > {
         static constexpr std::uint32_t cpacrEnable = Core::SecondaryCoreTraits::cpacrEnable;
 
-        void operator()() {}
+        void operator()() { this->armLockout(); }
     };
 
 #ifdef KVASIR_CORE_SCRATCH
