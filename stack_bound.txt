@@ -7,9 +7,9 @@
 rom_region 0x00000000 0x00004000
 rom_pointer 0x18
 
-# Kvasir::Detail::FlashXipDisabler (chip_rp_common XipControl.hpp) keeps the ROM functions it looked up in members and
+# Kvasir::Flash::XipDisabler (chip_rp_common XipControl.hpp) keeps the ROM functions it looked up in members and
 # calls them from RAM while the flash is off
-rom Kvasir::Detail::FlashXipDisabler::*
+rom Kvasir::Flash::XipDisabler::*
 
 # RomFunctions::call (chip_rp_common Rom.hpp) hands the looked-up ROM function to std::invoke; when LTO keeps that
 # std::invoke out of line, its call through the parameter is the ROM call
