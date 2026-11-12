@@ -21,6 +21,7 @@
 
 #include "kvasir/Register/Memory.hpp"
 #include "kvasir/Register/Register.hpp"
+#include "kvasir/Util/BusAddress.hpp"
 #include "kvasir/Util/attributes.hpp"
 #include "peripherals/CLOCKS.hpp"
 #include "peripherals/DMA.hpp"
@@ -181,8 +182,8 @@ struct CoreResetGuard {
             }   // not armed
         }
         apply(write(Xip::STREAM_ADDR::FULLREGISTER, Register::value<streamMarker>()));
-        auto const at = reinterpret_cast<std::uint32_t>(&entry) | 1U;   // Thumb
-        Rp::WatchdogBoot::arm(at, reinterpret_cast<std::uint32_t>(end));
+        auto const at = Kvasir::busAddress(&entry) | 1U;   // Thumb
+        Rp::WatchdogBoot::arm(at, Kvasir::busAddress(end));
     }
 
     // The watchdog boot vector is set: a reset of core 0 alone runs the routine.
